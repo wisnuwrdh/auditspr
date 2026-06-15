@@ -21,6 +21,8 @@ export default function FormPengeluaran({ kategori, onSuccess }: FormPengeluaran
   const [kategoriId, setKategoriId] = useState(kategori[0]?.id || '')
   const [catatan, setCatatan] = useState('')
   const [isSusut, setIsSusut] = useState(false)
+  const [isHutang, setIsHutang] = useState(false)
+  const [namaKreditur, setNamaKreditur] = useState('')
   const [tanggal, setTanggal] = useState(getTodayISO())
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -54,6 +56,8 @@ export default function FormPengeluaran({ kategori, onSuccess }: FormPengeluaran
         nominal: nominalNum,
         catatan: catatan || undefined,
         isSusut,
+        isHutang,
+        hutangId: undefined,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       }
@@ -61,6 +65,8 @@ export default function FormPengeluaran({ kategori, onSuccess }: FormPengeluaran
       setNominal('')
       setCatatan('')
       setIsSusut(false)
+      setIsHutang(false)
+      setNamaKreditur('')
       setRecentSuccess(true)
       setTimeout(() => setRecentSuccess(false), 2000)
       onSuccess()
@@ -126,6 +132,29 @@ export default function FormPengeluaran({ kategori, onSuccess }: FormPengeluaran
           Ini bahan yang tidak habis terjual hari ini?
         </span>
       </label>
+
+      <div className="border-t border-[#E2E8F0] pt-3">
+        <label className="flex items-center gap-3 py-2">
+          <input
+            type="checkbox"
+            checked={isHutang}
+            onChange={(e) => setIsHutang(e.target.checked)}
+            className="w-5 h-5 rounded border-[#E2E8F0] text-[#2563EB] focus:ring-[#2563EB]"
+          />
+          <span className="text-sm text-[#0F172A]">
+            Ini dibeli secara kredit / hutang dulu?
+          </span>
+        </label>
+        {isHutang && (
+          <Input
+            label="Nama kreditur (yang ngasih hutang)"
+            type="text"
+            value={namaKreditur}
+            onChange={(e) => setNamaKreditur(e.target.value)}
+            placeholder="Misal: Supplier Tepung"
+          />
+        )}
+      </div>
 
       <Input
         label="Catatan (opsional)"

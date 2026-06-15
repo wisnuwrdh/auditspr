@@ -1,4 +1,4 @@
-import type { Transaksi, RingkasanHarian, RingkasanBulanan, Kategori } from '@/types'
+import type { Transaksi, RingkasanHarian, RingkasanBulanan, Kategori, PembayaranHutang, ModalAwal } from '@/types'
 
 type KategoriMap = Map<string, string>
 
@@ -64,9 +64,13 @@ export function hitungRingkasanHarian(transaksi: Transaksi[], kategori: Kategori
   }
 }
 
-export function hitungRingkasanBulanan(transaksi: Transaksi[], bulan: string, kategori: Kategori[] = []): RingkasanBulanan {
+export function hitungRingkasanBulanan(transaksi: Transaksi[], bulan: string, kategori: Kategori[] = [], pembayaranHutang: PembayaranHutang[] = []): RingkasanBulanan {
   const transBulan = transaksi.filter(t => t.tanggal.startsWith(bulan))
   const ringkasanHarian = hitungRingkasanHarian(transBulan, kategori)
+
+  const totalBayarHutang = pembayaranHutang
+    .filter(p => p.tanggal.startsWith(bulan))
+    .reduce((sum, p) => sum + p.nominal, 0)
 
   const harianMap = new Map<string, number>()
   transBulan
@@ -100,6 +104,7 @@ export function hitungRingkasanBulanan(transaksi: Transaksi[], bulan: string, ka
     totalHPP: ringkasanHarian.totalHPP,
     totalOps: ringkasanHarian.totalStokPendukung + ringkasanHarian.totalOpsTetap + ringkasanHarian.totalOpsVariabel,
     totalPrive: ringkasanHarian.totalPrive,
+    totalBayarHutang,
     labaKotor: ringkasanHarian.labaKotor,
     labaBersih: ringkasanHarian.labaBersih,
     sisaKas: ringkasanHarian.sisaKas,
@@ -121,4 +126,16 @@ export function groupPengeluaranByKategori(transaksi: Transaksi[], kategori: Kat
   }
 
   return result
+}
+
+export function hitungSisaKasTotal(
+  modalAwal: ModalAwal,
+  transaksi: Transaksi[],
+  kategori: Kategori[]
+): number {
+  const ringkasan = hitungRingkasanHarian(transaksi, kategori)
+  const totalBayarHutang = transaksi
+    .filter(t => t.jenis === 'bayar_hutang')
+    .reduce((sum, t) => sum + t.nominal, 0)
+  return modalAwal.dariSendiri + ringkasan.totalPemasukan - ringkasan.totalHPP - ringkasan.totalStokPendukung - ringkasan.totalOpsTetap - ringkasan.totalOpsVariabel - ringkasan.totalPrive - totalBayarHutang
 }

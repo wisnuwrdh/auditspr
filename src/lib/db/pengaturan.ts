@@ -1,50 +1,43 @@
 import { getDB } from './index'
-import type { Pengaturan, TargetHarian } from '@/types'
+import type { Pengaturan, ModalAwal } from '@/types'
 
-const PENGATURAN_KEY = 'app-pengaturan'
+const KEY = 'pengaturan-utama'
 
-export function getDefaultPengaturan(): Pengaturan {
-  return {
-    namaBisnis: 'Bisnis Saya',
-    targetHarian: {
-      jumlahPorsi: 10,
-      hargaPerPorsi: 10000,
-    },
-    batasPrive: 1000000,
-  }
-}
-
-export async function getPengaturan(): Promise<Pengaturan> {
+export async function getPengaturan(): Promise<Pengaturan | null> {
   const db = await getDB()
-  const data = await db.get('pengaturan', PENGATURAN_KEY)
-  if (!data) return getDefaultPengaturan()
-  return data.value as Pengaturan
+  const data = await db.get('pengaturan', KEY) as Pengaturan | undefined
+  return data || null
 }
 
 export async function savePengaturan(pengaturan: Pengaturan): Promise<void> {
   const db = await getDB()
-  await db.put('pengaturan', { key: PENGATURAN_KEY, value: pengaturan })
+  await db.put('pengaturan', pengaturan, KEY)
 }
 
-export async function updateNamaBisnis(nama: string): Promise<void> {
-  const pengaturan = await getPengaturan()
-  pengaturan.namaBisnis = nama
-  await savePengaturan(pengaturan)
-}
-
-export async function updateTargetHarian(target: TargetHarian): Promise<void> {
-  const pengaturan = await getPengaturan()
-  pengaturan.targetHarian = target
-  await savePengaturan(pengaturan)
-}
-
-export async function updateBatasPrive(batas: number): Promise<void> {
-  const pengaturan = await getPengaturan()
-  pengaturan.batasPrive = batas
-  await savePengaturan(pengaturan)
-}
-
-export async function resetPengaturan(): Promise<void> {
+export async function saveModalAwal(modalAwal: ModalAwal): Promise<void> {
   const db = await getDB()
-  await db.delete('pengaturan', PENGATURAN_KEY)
+  const pengaturan = await db.get('pengaturan', KEY) as Pengaturan | undefined
+  if (pengaturan) {
+    pengaturan.modalAwal = modalAwal
+    await db.put('pengaturan', pengaturan, KEY)
+  } else {
+    const defaultPengaturan: Pengaturan = {
+      namaBisnis: '',
+      targetHarian: { jumlahPorsi: 0, hargaPerPorsi: 0 },
+      batasPrive: 0,
+      modalAwal,
+    }
+    await db.put('pengaturan', defaultPengaturan, KEY)
+  }
+}
+
+export async function getModalAwal(): Promise<ModalAwal> {
+  const pengaturan = await getPengaturan()
+  return pengaturan?.modalAwal || {
+    totalModal: 0,
+    dariSendiri: 0,
+    dariHutang: 0,
+    tanggalMulai: new Date().toISOString().substring(0, 10),
+    sudahDiisi: false,
+  }
 }

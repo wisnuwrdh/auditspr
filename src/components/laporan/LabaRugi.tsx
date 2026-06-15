@@ -12,6 +12,7 @@ interface LabaRugiProps {
   totalOpsTetap: number
   totalOpsVariabel: number
   totalPrive: number
+  totalBayarHutang: number
   labaKotor: number
   labaBersih: number
   sisaKas: number
@@ -26,6 +27,7 @@ export default function LabaRugi({
   totalOpsTetap,
   totalOpsVariabel,
   totalPrive,
+  totalBayarHutang,
   labaKotor,
   labaBersih,
   sisaKas,
@@ -83,6 +85,7 @@ export default function LabaRugi({
         {separator()}
 
         {row('− Diambil untuk keluarga', totalPrive, '#D97706')}
+        {row('− Bayar hutang', totalBayarHutang, '#DC2626')}
         {separator()}
 
         <div className="flex justify-between py-1.5">

@@ -1,11 +1,12 @@
 'use client'
 
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutDashboard, PlusCircle, BarChart3, Settings } from 'lucide-react'
+import { LayoutDashboard, PlusCircle, BarChart3, Settings, Wallet } from 'lucide-react'
 
 const tabs = [
   { label: 'Beranda', icon: LayoutDashboard, href: '/dashboard' },
   { label: 'Catat', icon: PlusCircle, href: '/catat' },
+  { label: 'Hutang', icon: Wallet, href: '/hutang' },
   { label: 'Laporan', icon: BarChart3, href: '/laporan' },
   { label: 'Pengaturan', icon: Settings, href: '/pengaturan' },
 ]
@@ -24,7 +25,7 @@ export default function BottomNav() {
             <button
               key={tab.href}
               onClick={() => router.push(tab.href)}
-              className={`flex flex-col items-center justify-center gap-0.5 min-w-[64px] min-h-[44px] px-2 py-1 rounded-lg transition-colors ${
+              className={`flex flex-col items-center justify-center gap-0.5 min-w-[56px] min-h-[44px] px-1 py-1 rounded-lg transition-colors ${
                 isActive ? 'text-[#2563EB]' : 'text-[#94A3B8]'
               }`}
             >

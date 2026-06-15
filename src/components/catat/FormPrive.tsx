@@ -28,7 +28,7 @@ export default function FormPrive({ onSuccess }: FormPriveProps) {
   useEffect(() => {
     async function load() {
       const pengaturan = await getPengaturan()
-      setBatasPrive(pengaturan.batasPrive)
+      setBatasPrive(pengaturan?.batasPrive || 1000000)
 
       const all = await getAllTransaksi()
       const currentMonth = getTodayISO().substring(0, 7)

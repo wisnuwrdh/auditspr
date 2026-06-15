@@ -9,6 +9,7 @@ import KategoriManager from '@/components/pengaturan/KategoriManager'
 import TargetHarianSettings from '@/components/pengaturan/TargetHarian'
 import BatasPriveSettings from '@/components/pengaturan/BatasPrive'
 import BackupRestore from '@/components/pengaturan/BackupRestore'
+import ModalAwalSetup from '@/components/pengaturan/ModalAwalSetup'
 import { getPengaturan, savePengaturan } from '@/lib/db/pengaturan'
 import { getAllKategori } from '@/lib/db/kategori'
 import type { Pengaturan, Kategori, TargetHarian } from '@/types'
@@ -28,7 +29,7 @@ export default function PengaturanPage() {
         getAllKategori(),
       ])
       setPengaturan(peng)
-      setNamaBisnis(peng.namaBisnis)
+      setNamaBisnis(peng?.namaBisnis || '')
       setKategori(kats)
     } catch (err) {
       console.error('Failed to load settings:', err)
@@ -99,6 +100,8 @@ export default function PengaturanPage() {
         </div>
       </Card>
 
+      <ModalAwalSetup onSaved={loadData} />
+
       {pengaturan && (
         <>
           <TargetHarianSettings
@@ -117,7 +120,7 @@ export default function PengaturanPage() {
 
       <Card>
         <p className="text-sm font-medium text-[#0F172A] mb-1">Tentang</p>
-        <p className="text-xs text-[#64748B] mb-2">CashFlow UMKM v1.0</p>
+        <p className="text-xs text-[#64748B] mb-2">CashFlow UMKM v2.0</p>
         <p className="text-xs text-[#64748B] bg-[#EFF6FF] p-2.5 rounded-lg">
           Data tersimpan di HP kamu. Tidak dikirim ke mana-mana.
         </p>

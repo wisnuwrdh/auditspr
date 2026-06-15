@@ -109,16 +109,14 @@ export default function RiwayatTransaksi({ transaksi, onDelete, onEdit }: Riwaya
         }
         await addTransaksi(newTrans)
       } else if (isPrive) {
-        await updateTransaksi({
-          ...editItem,
+        await updateTransaksi(editItem.id, {
           tanggal: editTanggal,
           nominal: nominalNum,
           catatan: editCatatan || undefined,
           updatedAt: new Date().toISOString(),
         })
       } else {
-        await updateTransaksi({
-          ...editItem,
+        await updateTransaksi(editItem.id, {
           tanggal: editTanggal,
           kategoriId: editKategoriId,
           nominal: nominalNum,

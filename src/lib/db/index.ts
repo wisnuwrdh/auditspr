@@ -1,91 +1,118 @@
 import { openDB, type IDBPDatabase } from 'idb'
-import { KATEGORI_DEFAULT } from '@/lib/constants'
-import { v4 as uuid } from 'uuid'
-import type { Kategori } from '@/types'
 
-const DB_NAME = 'cashflow-umkm-db'
+const DB_NAME = 'cashflow-umkm'
 const DB_VERSION = 2
 
-let dbInstance: IDBPDatabase | null = null
-let seedPromise: Promise<void> | null = null
-
-export async function getDB(): Promise<IDBPDatabase> {
-  if (dbInstance) return dbInstance
-
-  dbInstance = await openDB(DB_NAME, DB_VERSION, {
-    upgrade(db) {
-      if (!db.objectStoreNames.contains('transaksi')) {
-        const store = db.createObjectStore('transaksi', { keyPath: 'id' })
-        store.createIndex('tanggal', 'tanggal', { unique: false })
-        store.createIndex('jenis', 'jenis', { unique: false })
-        store.createIndex('kategoriId', 'kategoriId', { unique: false })
-      }
-      if (!db.objectStoreNames.contains('kategori')) {
-        const store = db.createObjectStore('kategori', { keyPath: 'id' })
-        store.createIndex('jenis', 'jenis', { unique: false })
-      }
-      if (!db.objectStoreNames.contains('pengaturan')) {
-        db.createObjectStore('pengaturan', { keyPath: 'key' })
-      }
-    },
-  })
-
-  return dbInstance
+export interface CashflowDB {
+  transaksi: {
+    key: string
+    value: import('@/types').Transaksi
+    indexes: {
+      'by-tanggal': string
+      'by-jenis': string
+    }
+  }
+  kategori: {
+    key: string
+    value: import('@/types').Kategori
+    indexes: {
+      'by-jenis': string
+    }
+  }
+  pengaturan: {
+    key: string
+    value: import('@/types').Pengaturan
+  }
+  hutang: {
+    key: string
+    value: import('@/types').Hutang
+    indexes: {
+      'by-status': string
+    }
+  }
+  pembayaran_hutang: {
+    key: string
+    value: import('@/types').PembayaranHutang
+    indexes: {
+      'by-hutang': string
+    }
+  }
 }
 
-let seeded = false
-export async function ensureDefaultKategori(): Promise<void> {
-  if (seeded) return
-  if (seedPromise) return seedPromise
+let dbPromise: Promise<IDBPDatabase<CashflowDB>> | null = null
 
-  seedPromise = (async () => {
-    const db = await getDB()
-    const existing = await db.getAll('kategori')
+function getDB(): Promise<IDBPDatabase<CashflowDB>> {
+  if (!dbPromise) {
+    dbPromise = openDB<CashflowDB>(DB_NAME, DB_VERSION, {
+      upgrade(db, oldVersion) {
+        if (oldVersion < 1) {
+          const transaksiStore = db.createObjectStore('transaksi', { keyPath: 'id' })
+          transaksiStore.createIndex('by-tanggal', 'tanggal')
+          transaksiStore.createIndex('by-jenis', 'jenis')
 
-    if (existing.length > 0) {
-      const dups = findDuplicateByNameJenis(existing)
-      if (dups.length > 0) {
-        const tx = db.transaction('kategori', 'readwrite')
-        for (const d of dups) {
-          await tx.store.delete(d.id)
+          const kategoriStore = db.createObjectStore('kategori', { keyPath: 'id' })
+          kategoriStore.createIndex('by-jenis', 'jenis')
+
+          db.createObjectStore('pengaturan', { keyPath: 'id' })
         }
-        await tx.done
-      }
-      seeded = true
-      return
-    }
 
-    const kategories: Kategori[] = KATEGORI_DEFAULT.map(k => ({
+        if (oldVersion < 2) {
+          const hutangStore = db.createObjectStore('hutang', { keyPath: 'id' })
+          hutangStore.createIndex('by-status', 'status')
+
+          const pembayaranStore = db.createObjectStore('pembayaran_hutang', { keyPath: 'id' })
+          pembayaranStore.createIndex('by-hutang', 'hutangId')
+
+          if (!db.objectStoreNames.contains('transaksi')) {
+            const transaksiStore = db.createObjectStore('transaksi', { keyPath: 'id' })
+            transaksiStore.createIndex('by-tanggal', 'tanggal')
+            transaksiStore.createIndex('by-jenis', 'jenis')
+          }
+        }
+      },
+    })
+  }
+  return dbPromise
+}
+
+export { getDB }
+
+import type { Kategori } from '@/types'
+import { KATEGORI_DEFAULT } from '@/lib/constants'
+import { v4 as uuid } from 'uuid'
+
+export async function ensureDefaultKategori(): Promise<Kategori[]> {
+  const db = await getDB()
+  const existing = await db.getAll('kategori') as Kategori[]
+
+  if (existing.length === 0) {
+    const defaults: Kategori[] = KATEGORI_DEFAULT.map(k => ({
       id: uuid(),
       nama: k.nama,
       jenis: k.jenis,
       isDefault: true,
       createdAt: new Date().toISOString(),
     }))
-
-    const tx = db.transaction('kategori', 'readwrite')
-    for (const k of kategories) {
-      await tx.store.add(k)
+    for (const k of defaults) {
+      await db.add('kategori', k)
     }
-    await tx.done
-    seeded = true
-  })()
-
-  return seedPromise
-}
-
-function findDuplicateByNameJenis(kategori: Kategori[]): Kategori[] {
-  const seen = new Map<string, number>()
-  const duplicates: Kategori[] = []
-
-  for (const k of kategori) {
-    const key = `${k.nama}|${k.jenis}`
-    const count = seen.get(key) || 0
-    if (count > 0) {
-      duplicates.push(k)
-    }
-    seen.set(key, count + 1)
+    return defaults
   }
 
-  return duplicates
+  for (const def of KATEGORI_DEFAULT) {
+    const exists = existing.some(e => e.nama === def.nama && e.jenis === def.jenis)
+    if (!exists) {
+      const baru: Kategori = {
+        id: uuid(),
+        nama: def.nama,
+        jenis: def.jenis,
+        isDefault: true,
+        createdAt: new Date().toISOString(),
+      }
+      await db.add('kategori', baru)
+      existing.push(baru)
+    }
+  }
+
+  return existing
 }

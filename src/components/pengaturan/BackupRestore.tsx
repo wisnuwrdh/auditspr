@@ -7,7 +7,9 @@ import Modal from '@/components/ui/Modal'
 import { exportToExcel, validateBackupFile, parseBackupFile } from '@/lib/utils/export'
 import { getAllTransaksi, addTransaksi } from '@/lib/db/transaksi'
 import { getAllKategori, addKategori } from '@/lib/db/kategori'
+import { getAllHutang, getPembayaranByHutang } from '@/lib/db/hutang'
 import { getTodayISO } from '@/lib/utils/format'
+import type { PembayaranHutang } from '@/types'
 
 export default function BackupRestore() {
   const [exporting, setExporting] = useState(false)
@@ -23,8 +25,14 @@ export default function BackupRestore() {
     try {
       const transaksi = await getAllTransaksi()
       const kategori = await getAllKategori()
+      const hutang = await getAllHutang()
+      const allPembayaran: PembayaranHutang[] = []
+      for (const h of hutang) {
+        const payments = await getPembayaranByHutang(h.id)
+        allPembayaran.push(...payments)
+      }
 
-      const monthlyMap = new Map<string, { totalPemasukan: number; totalHPP: number; totalOps: number; labaKotor: number; labaBersih: number; totalPrive: number; sisaKas: number; marginKotor: number; marginBersih: number }>()
+      const monthlyMap = new Map<string, { totalPemasukan: number; totalHPP: number; totalOps: number; labaKotor: number; labaBersih: number; totalPrive: number; totalBayarHutang: number; sisaKas: number; marginKotor: number; marginBersih: number }>()
 
       transaksi.forEach(t => {
         const bulan = t.tanggal.substring(0, 7)
@@ -32,7 +40,7 @@ export default function BackupRestore() {
           monthlyMap.set(bulan, {
             totalPemasukan: 0, totalHPP: 0, totalOps: 0,
             labaKotor: 0, labaBersih: 0, totalPrive: 0,
-            sisaKas: 0, marginKotor: 0, marginBersih: 0,
+            totalBayarHutang: 0, sisaKas: 0, marginKotor: 0, marginBersih: 0,
           })
         }
       })
@@ -42,17 +50,18 @@ export default function BackupRestore() {
         const totalPemasukan = transBulan.filter(t => t.jenis === 'pemasukan').reduce((s, t) => s + t.nominal, 0)
         const totalHPP = transBulan.filter(t => t.jenis === 'pengeluaran').reduce((s, t) => s + t.nominal, 0)
         const totalPrive = transBulan.filter(t => t.jenis === 'prive').reduce((s, t) => s + t.nominal, 0)
+        const totalBayarHutang = allPembayaran.filter(p => p.tanggal.startsWith(bulan)).reduce((s, p) => s + p.nominal, 0)
         const totalOps = 0
         const labaKotor = totalPemasukan - totalHPP
         const labaBersih = labaKotor - totalOps
-        const sisaKas = labaBersih - totalPrive
+        const sisaKas = labaBersih - totalPrive - totalBayarHutang
         const marginKotor = totalPemasukan > 0 ? (labaKotor / totalPemasukan) * 100 : 0
         const marginBersih = totalPemasukan > 0 ? (labaBersih / totalPemasukan) * 100 : 0
 
-        return { bulan, totalPemasukan, totalHPP, totalOps, labaKotor, labaBersih, totalPrive, sisaKas, marginKotor, marginBersih }
+        return { bulan, totalPemasukan, totalHPP, totalOps, labaKotor, labaBersih, totalPrive, totalBayarHutang, sisaKas, marginKotor, marginBersih }
       })
 
-      const data = await exportToExcel(transaksi, kategori, ringkasanBulanan)
+      const data = await exportToExcel(transaksi, kategori, hutang, allPembayaran, ringkasanBulanan)
       const blob = new Blob([new Uint8Array(data)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')

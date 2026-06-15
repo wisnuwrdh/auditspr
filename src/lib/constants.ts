@@ -35,7 +35,10 @@ export const TOOLTIP_ISTILAH: Record<string, string> = {
   bep: 'Balik modal artinya uang yang masuk sudah cukup nutup semua biaya hari ini.',
   prive: 'Uang bisnis yang dipakai untuk kebutuhan pribadi atau keluarga.',
   susut: 'Bahan yang sudah dibeli tapi tidak jadi produk terjual — tetap dihitung sebagai kerugian.',
-  sisaKas: 'Uang yang seharusnya tetap ada di kas bisnis untuk modal.',
+  sisaKas: 'Uang yang tersisa di kas bisnis dari awal usaha sampai sekarang, setelah semua pengeluaran.',
+  modalAwal: 'Uang yang pertama kali kamu pakai untuk mulai bisnis ini. Dicatat sekali saja.',
+  hutang: 'Uang atau barang yang kamu ambil dulu dan belum dibayar ke orang lain.',
+  sisaHutang: 'Sisa hutang yang belum dibayar. Makin cepat dilunasi makin baik.',
 }
 
 export const NAMA_HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']

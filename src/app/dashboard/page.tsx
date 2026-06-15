@@ -14,12 +14,14 @@ import GrafikTren from '@/components/dashboard/GrafikTren'
 import BatasPrive from '@/components/dashboard/BatasPrive'
 import InsightMingguan from '@/components/dashboard/InsightMingguan'
 import BackupReminder from '@/components/dashboard/BackupReminder'
+import BannerHutang from '@/components/dashboard/BannerHutang'
 import { getAllTransaksi } from '@/lib/db/transaksi'
 import { getAllKategori } from '@/lib/db/kategori'
 import { getPengaturan, savePengaturan } from '@/lib/db/pengaturan'
+import { getRingkasanHutang } from '@/lib/db/hutang'
 import { hitungRingkasanHarian } from '@/lib/utils/hitung'
 import { getTodayISO, formatTanggal } from '@/lib/utils/format'
-import type { Transaksi, Pengaturan, RingkasanHarian, TargetHarian } from '@/types'
+import type { Transaksi, Pengaturan, RingkasanHarian, TargetHarian, RingkasanHutang } from '@/types'
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -28,16 +30,19 @@ export default function DashboardPage() {
   const [ringkasan, setRingkasan] = useState<RingkasanHarian | null>(null)
   const [allTransaksi, setAllTransaksi] = useState<Transaksi[]>([])
   const [totalPriveBulan, setTotalPriveBulan] = useState(0)
+  const [ringkasanHutang, setRingkasanHutang] = useState<RingkasanHutang | null>(null)
 
   useEffect(() => {
     async function load() {
       try {
-        const [transaksi, pengaturanData, kats] = await Promise.all([
+        const [transaksi, pengaturanData, kats, hutangRingkasan] = await Promise.all([
           getAllTransaksi(),
           getPengaturan(),
           getAllKategori(),
+          getRingkasanHutang(),
         ])
         setPengaturan(pengaturanData)
+        setRingkasanHutang(hutangRingkasan)
 
         const today = getTodayISO()
         const transHariIni = transaksi.filter(t => t.tanggal === today)
@@ -103,6 +108,13 @@ export default function DashboardPage() {
       />
 
       <BackupReminder />
+
+      {ringkasanHutang && (
+        <BannerHutang
+          totalSisa={ringkasanHutang.totalSisaHutang}
+          jumlahKreditur={ringkasanHutang.jumlahKreditur}
+        />
+      )}
 
       {!hasDataToday && (
         <Card>
