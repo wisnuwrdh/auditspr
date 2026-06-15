@@ -7,6 +7,7 @@ import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
 import KategoriPicker from '@/components/ui/KategoriPicker'
 import { addTransaksi } from '@/lib/db/transaksi'
+import { addHutang } from '@/lib/db/hutang'
 import { getTodayISO } from '@/lib/utils/format'
 import { LABEL_JENIS_KATEGORI } from '@/lib/constants'
 import type { Kategori, Transaksi } from '@/types'
@@ -45,9 +46,25 @@ export default function FormPengeluaran({ kategori, onSuccess }: FormPengeluaran
       setError('Pilih kategori')
       return
     }
+    if (isHutang && !namaKreditur.trim()) {
+      setError('Masukkan nama kreditur untuk hutang')
+      return
+    }
 
     setLoading(true)
     try {
+      let hutangId: string | undefined
+
+      if (isHutang) {
+        hutangId = await addHutang({
+          namaKreditur: namaKreditur.trim(),
+          jenisHutang: 'operasional',
+          totalHutang: nominalNum,
+          catatan: catatan || undefined,
+          tanggalHutang: tanggal,
+        })
+      }
+
       const transaksi: Transaksi = {
         id: uuid(),
         tanggal,
@@ -57,7 +74,7 @@ export default function FormPengeluaran({ kategori, onSuccess }: FormPengeluaran
         catatan: catatan || undefined,
         isSusut,
         isHutang,
-        hutangId: undefined,
+        hutangId,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       }

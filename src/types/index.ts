@@ -69,6 +69,7 @@ export interface TargetHarian {
 }
 
 export interface Pengaturan {
+  id: string
   namaBisnis: string
   targetHarian: TargetHarian
   batasPrive: number

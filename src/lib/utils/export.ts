@@ -118,6 +118,8 @@ export function validateBackupFile(data: ArrayBuffer): boolean {
 export interface RestoredData {
   transaksi: Transaksi[]
   kategori: Kategori[]
+  hutang: Hutang[]
+  pembayaranHutang: PembayaranHutang[]
 }
 
 export function parseBackupFile(data: ArrayBuffer): RestoredData {
@@ -128,6 +130,12 @@ export function parseBackupFile(data: ArrayBuffer): RestoredData {
 
   const katSheet = wb.Sheets['Kategori']
   const katRaw: Record<string, unknown>[] = XLSX.utils.sheet_to_json(katSheet)
+
+  const hutangSheet = wb.Sheets['Hutang']
+  const hutangRaw: Record<string, unknown>[] = hutangSheet ? XLSX.utils.sheet_to_json(hutangSheet) : []
+
+  const pembayaranSheet = wb.Sheets['Pembayaran Hutang']
+  const pembayaranRaw: Record<string, unknown>[] = pembayaranSheet ? XLSX.utils.sheet_to_json(pembayaranSheet) : []
 
   const transaksi: Transaksi[] = transRaw.map((r, i: number) => ({
     id: `restored-${Date.now()}-${i}`,
@@ -151,5 +159,28 @@ export function parseBackupFile(data: ArrayBuffer): RestoredData {
     createdAt: new Date().toISOString(),
   }))
 
-  return { transaksi, kategori }
+  const hutang: Hutang[] = hutangRaw.map((r, i: number) => ({
+    id: String(r.ID || `restored-hutang-${Date.now()}-${i}`),
+    namaKreditur: String(r.Kreditur || ''),
+    jenisHutang: String(r.Jenis || 'operasional') as 'modal' | 'operasional',
+    totalHutang: Number(r.Total || 0),
+    totalDibayar: Number(r.Dibayar || 0),
+    sisaHutang: Number(r.Sisa || 0),
+    status: String(r.Status || 'aktif') as 'aktif' | 'lunas' | 'dihapuskan',
+    tanggalHutang: String(r.Tanggal || ''),
+    catatan: r.Catatan ? String(r.Catatan) : undefined,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }))
+
+  const pembayaranHutang: PembayaranHutang[] = pembayaranRaw.map((r, i: number) => ({
+    id: `restored-pay-${Date.now()}-${i}`,
+    hutangId: String(r.ID_Hutang || ''),
+    nominal: Number(r.Nominal || 0),
+    tanggal: String(r.Tanggal || ''),
+    catatan: r.Catatan ? String(r.Catatan) : undefined,
+    createdAt: new Date().toISOString(),
+  }))
+
+  return { transaksi, kategori, hutang, pembayaranHutang }
 }

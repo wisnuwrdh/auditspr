@@ -10,11 +10,10 @@ import Card from '@/components/ui/Card'
 import Tooltip from '@/components/ui/Tooltip'
 import { getAllTransaksi } from '@/lib/db/transaksi'
 import { getAllKategori } from '@/lib/db/kategori'
-import { getAllHutang } from '@/lib/db/hutang'
 import { hitungRingkasanHarian } from '@/lib/utils/hitung'
 import { formatBulan, formatRupiah, formatTanggal } from '@/lib/utils/format'
 import { TOOLTIP_ISTILAH } from '@/lib/constants'
-import type { Transaksi, Kategori, Hutang } from '@/types'
+import type { Transaksi, Kategori } from '@/types'
 
 export default function LaporanPage() {
   const now = new Date()
@@ -23,20 +22,17 @@ export default function LaporanPage() {
   )
   const [transaksi, setTransaksi] = useState<Transaksi[]>([])
   const [kategori, setKategori] = useState<Kategori[]>([])
-  const [hutang, setHutang] = useState<Hutang[]>([])
   const [loading, setLoading] = useState(true)
 
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const [allTrans, kats, allHutang] = await Promise.all([
+      const [allTrans, kats] = await Promise.all([
         getAllTransaksi(),
         getAllKategori(),
-        getAllHutang(),
       ])
       setTransaksi(allTrans)
       setKategori(kats)
-      setHutang(allHutang)
     } catch (err) {
       console.error('Failed to load:', err)
     } finally {
@@ -51,9 +47,9 @@ export default function LaporanPage() {
   const transBulan = transaksi.filter(t => t.tanggal.startsWith(bulan))
   const ringkasan = transBulan.length > 0 ? hitungRingkasanHarian(transBulan, kategori) : null
 
-  const totalBayarHutangBulan = hutang
-    .filter(h => h.status === 'lunas')
-    .reduce((sum, h) => sum + h.totalDibayar, 0)
+  const totalBayarHutangBulan = transBulan
+    .filter(t => t.jenis === 'bayar_hutang')
+    .reduce((sum, t) => sum + t.nominal, 0)
 
   const katMap = new Map<string, { nama: string; jenis: string }>()
   for (const k of kategori) {

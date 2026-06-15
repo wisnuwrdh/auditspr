@@ -1,6 +1,6 @@
 import { getDB } from './index'
 import { v4 as uuid } from 'uuid'
-import type { Hutang, PembayaranHutang } from '@/types'
+import type { Hutang, PembayaranHutang, Transaksi } from '@/types'
 
 export async function getAllHutang(): Promise<Hutang[]> {
   const db = await getDB()
@@ -40,11 +40,19 @@ export async function updateHutang(id: string, data: Partial<Hutang>): Promise<v
 export async function deleteHutang(id: string): Promise<void> {
   const db = await getDB()
   await db.delete('hutang', id)
-  const tx = db.transaction('pembayaran_hutang', 'readwrite')
-  let cursor = await tx.store.index('by-hutang').openCursor(id)
+  const pembayaranList = await getPembayaranByHutang(id)
+  const tx = db.transaction(['pembayaran_hutang', 'transaksi'], 'readwrite')
+  let cursor = await tx.objectStore('pembayaran_hutang').index('by-hutang').openCursor(id)
   while (cursor) {
     cursor.delete()
     cursor = await cursor.continue()
+  }
+  for (const p of pembayaranList) {
+    const transaksiList = await tx.objectStore('transaksi').index('by-jenis').getAll('bayar_hutang')
+    const match = transaksiList.find(t => t.hutangId === id && t.nominal === p.nominal)
+    if (match) {
+      tx.objectStore('transaksi').delete(match.id)
+    }
   }
   await tx.done
 }
@@ -60,26 +68,42 @@ export async function addPembayaranHutang(hutangId: string, nominal: number, tan
   const hutang = await db.get('hutang', hutangId)
   if (!hutang) return
 
+  const pembayaranId = uuid()
+  const now = new Date().toISOString()
+
   const pembayaran: PembayaranHutang = {
-    id: uuid(),
+    id: pembayaranId,
     hutangId,
     nominal,
     tanggal,
     catatan,
-    createdAt: new Date().toISOString(),
+    createdAt: now,
+  }
+
+  const transaksi: Transaksi = {
+    id: uuid(),
+    tanggal,
+    jenis: 'bayar_hutang',
+    kategoriId: hutangId,
+    nominal,
+    catatan: `Bayar hutang ke ${hutang.namaKreditur}${catatan ? `: ${catatan}` : ''}`,
+    hutangId,
+    createdAt: now,
+    updatedAt: now,
   }
 
   const totalDibayarBaru = hutang.totalDibayar + nominal
   const sisaHutangBaru = hutang.totalHutang - totalDibayarBaru
 
-  const tx = db.transaction(['hutang', 'pembayaran_hutang'], 'readwrite')
+  const tx = db.transaction(['hutang', 'pembayaran_hutang', 'transaksi'], 'readwrite')
   await tx.objectStore('pembayaran_hutang').add(pembayaran)
+  await tx.objectStore('transaksi').add(transaksi)
   await tx.objectStore('hutang').put({
     ...hutang,
     totalDibayar: totalDibayarBaru,
     sisaHutang: sisaHutangBaru,
     status: sisaHutangBaru <= 0 ? 'lunas' : 'aktif',
-    updatedAt: new Date().toISOString(),
+    updatedAt: now,
   })
   await tx.done
 }
@@ -95,8 +119,16 @@ export async function deletePembayaranHutang(id: string, hutangId: string): Prom
   const totalDibayarBaru = Math.max(0, hutang.totalDibayar - pembayaran.nominal)
   const sisaHutangBaru = hutang.totalHutang - totalDibayarBaru
 
-  const tx = db.transaction(['hutang', 'pembayaran_hutang'], 'readwrite')
+  const tx = db.transaction(['hutang', 'pembayaran_hutang', 'transaksi'], 'readwrite')
   await tx.objectStore('pembayaran_hutang').delete(id)
+
+  const index = tx.objectStore('transaksi').index('by-jenis')
+  const transBayarList = await index.getAll('bayar_hutang')
+  const match = transBayarList.find(t => t.hutangId === hutangId && t.nominal === pembayaran.nominal)
+  if (match) {
+    tx.objectStore('transaksi').delete(match.id)
+  }
+
   await tx.objectStore('hutang').put({
     ...hutang,
     totalDibayar: totalDibayarBaru,

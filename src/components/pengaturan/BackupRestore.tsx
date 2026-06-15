@@ -136,6 +136,22 @@ export default function BackupRestore() {
         await addKategori(k)
       }
 
+      const db3 = db.transaction('hutang', 'readwrite')
+      await db3.store.clear()
+      await db3.done
+
+      for (const h of restored.hutang) {
+        await db.add('hutang', h)
+      }
+
+      const db4 = db.transaction('pembayaran_hutang', 'readwrite')
+      await db4.store.clear()
+      await db4.done
+
+      for (const p of restored.pembayaranHutang) {
+        await db.add('pembayaran_hutang', p)
+      }
+
       setMessageType('success')
       setMessage('Data berhasil dipulihkan!')
     } catch {

@@ -11,17 +11,19 @@ export async function getPengaturan(): Promise<Pengaturan | null> {
 
 export async function savePengaturan(pengaturan: Pengaturan): Promise<void> {
   const db = await getDB()
-  await db.put('pengaturan', pengaturan, KEY)
+  await db.put('pengaturan', { ...pengaturan, id: KEY }, KEY)
 }
 
 export async function saveModalAwal(modalAwal: ModalAwal): Promise<void> {
   const db = await getDB()
   const pengaturan = await db.get('pengaturan', KEY) as Pengaturan | undefined
   if (pengaturan) {
+    pengaturan.id = KEY
     pengaturan.modalAwal = modalAwal
     await db.put('pengaturan', pengaturan, KEY)
   } else {
     const defaultPengaturan: Pengaturan = {
+      id: KEY,
       namaBisnis: '',
       targetHarian: { jumlahPorsi: 0, hargaPerPorsi: 0 },
       batasPrive: 0,

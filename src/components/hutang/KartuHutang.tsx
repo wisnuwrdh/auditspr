@@ -1,14 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import { Trash2, Wallet } from 'lucide-react'
+import { Trash2, Wallet, CheckCircle, XCircle } from 'lucide-react'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
+import Input from '@/components/ui/Input'
 import ProgressBar from '@/components/ui/ProgressBar'
 import RiwayatPembayaran from './RiwayatPembayaran'
 import FormBayarHutang from './FormBayarHutang'
 import { formatRupiah, formatTanggal } from '@/lib/utils/format'
-import { deleteHutang } from '@/lib/db/hutang'
+import { deleteHutang, updateHutang } from '@/lib/db/hutang'
 import type { Hutang } from '@/types'
 
 interface KartuHutangProps {
@@ -20,6 +21,9 @@ export default function KartuHutang({ hutang, onUpdate }: KartuHutangProps) {
   const [showBayar, setShowBayar] = useState(false)
   const [showRiwayat, setShowRiwayat] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [confirmLunas, setConfirmLunas] = useState(false)
+  const [showHapusKan, setShowHapusKan] = useState(false)
+  const [alasanHapus, setAlasanHapus] = useState('')
 
   const pctLunas = hutang.totalHutang > 0
     ? (hutang.totalDibayar / hutang.totalHutang) * 100
@@ -37,8 +41,21 @@ export default function KartuHutang({ hutang, onUpdate }: KartuHutangProps) {
     onUpdate()
   }
 
+  const handleTandaiLunas = async () => {
+    await updateHutang(hutang.id, { status: 'lunas', sisaHutang: 0, totalDibayar: hutang.totalHutang })
+    setConfirmLunas(false)
+    onUpdate()
+  }
+
+  const handleHapuskan = async () => {
+    await updateHutang(hutang.id, { status: 'dihapuskan', catatan: alasanHapus || hutang.catatan })
+    setShowHapusKan(false)
+    setAlasanHapus('')
+    onUpdate()
+  }
+
   return (
-    <Card className={hutang.status === 'lunas' ? 'opacity-75' : ''}>
+    <Card className={hutang.status !== 'aktif' ? 'opacity-75' : ''}>
       <div className="flex items-start justify-between mb-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
@@ -81,12 +98,22 @@ export default function KartuHutang({ hutang, onUpdate }: KartuHutangProps) {
         <p className="text-xs text-[#64748B] mt-2">{hutang.catatan}</p>
       )}
 
-      <div className="flex gap-2 mt-3">
+      <div className="flex gap-2 mt-3 flex-wrap">
         {hutang.status === 'aktif' && (
-          <Button size="sm" onClick={() => setShowBayar(!showBayar)} className="flex items-center gap-1">
-            <Wallet size={14} />
-            Bayar
-          </Button>
+          <>
+            <Button size="sm" onClick={() => setShowBayar(!showBayar)} className="flex items-center gap-1">
+              <Wallet size={14} />
+              Bayar
+            </Button>
+            <Button size="sm" variant="secondary" onClick={() => setConfirmLunas(true)} className="flex items-center gap-1">
+              <CheckCircle size={14} />
+              Tandai Lunas
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setShowHapusKan(true)} className="flex items-center gap-1 text-[#DC2626]">
+              <XCircle size={14} />
+              Maafkan
+            </Button>
+          </>
         )}
         <Button size="sm" variant="secondary" onClick={() => setShowRiwayat(!showRiwayat)}>
           Riwayat
@@ -124,6 +151,42 @@ export default function KartuHutang({ hutang, onUpdate }: KartuHutangProps) {
             onSuccess={() => { setShowBayar(false); onUpdate() }}
             onCancel={() => setShowBayar(false)}
           />
+        </div>
+      )}
+
+      {confirmLunas && (
+        <div className="mt-4 pt-4 border-t border-[#E2E8F0]">
+          <p className="text-sm text-[#64748B] mb-3">
+            Tandai hutang ke <strong>{hutang.namaKreditur}</strong> sebagai lunas?
+          </p>
+          <div className="flex gap-2">
+            <Button size="sm" variant="secondary" fullWidth onClick={() => setConfirmLunas(false)}>
+              Batal
+            </Button>
+            <Button size="sm" fullWidth onClick={handleTandaiLunas}>
+              Ya, Lunas
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {showHapusKan && (
+        <div className="mt-4 pt-4 border-t border-[#E2E8F0]">
+          <p className="text-sm text-[#64748B] mb-2">Alasan maafkan hutang ini?</p>
+          <Input
+            type="text"
+            value={alasanHapus}
+            onChange={(e) => setAlasanHapus(e.target.value)}
+            placeholder="Misal: sudah dibayar lewat lain"
+          />
+          <div className="flex gap-2 mt-3">
+            <Button size="sm" variant="secondary" fullWidth onClick={() => { setShowHapusKan(false); setAlasanHapus('') }}>
+              Batal
+            </Button>
+            <Button size="sm" variant="danger" fullWidth onClick={handleHapuskan}>
+              Maafkan Hutang
+            </Button>
+          </div>
         </div>
       )}
 

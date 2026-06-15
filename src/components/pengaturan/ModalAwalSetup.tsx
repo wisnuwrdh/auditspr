@@ -15,9 +15,9 @@ interface ModalAwalSetupProps {
 export default function ModalAwalSetup({ onSaved }: ModalAwalSetupProps) {
   const [modalAwal, setModalAwal] = useState<ModalAwal | null>(null)
   const [editing, setEditing] = useState(false)
+  const [confirmEdit, setConfirmEdit] = useState(false)
   const [totalModal, setTotalModal] = useState('')
   const [dariSendiri, setDariSendiri] = useState('')
-  const [dariHutang, setDariHutang] = useState('')
   const [tanggalMulai, setTanggalMulai] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -34,22 +34,22 @@ export default function ModalAwalSetup({ onSaved }: ModalAwalSetupProps) {
     setLoading(false)
   }
 
+  const total = parseInt(totalModal.replace(/\./g, '')) || 0
+  const sendiri = parseInt(dariSendiri.replace(/\./g, '')) || 0
+  const dariHutang = Math.max(0, total - sendiri)
+
   const handleEdit = () => {
     if (!modalAwal) return
     setTotalModal(modalAwal.totalModal ? modalAwal.totalModal.toLocaleString('id-ID') : '')
     setDariSendiri(modalAwal.dariSendiri ? modalAwal.dariSendiri.toLocaleString('id-ID') : '')
-    setDariHutang(modalAwal.dariHutang ? modalAwal.dariHutang.toLocaleString('id-ID') : '')
     setTanggalMulai(modalAwal.tanggalMulai)
     setEditing(true)
+    setConfirmEdit(false)
   }
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-
-    const total = parseInt(totalModal.replace(/\./g, ''))
-    const sendiri = parseInt(dariSendiri.replace(/\./g, ''))
-    const hutang = parseInt(dariHutang.replace(/\./g, ''))
 
     if (!tanggalMulai) {
       setError('Pilih tanggal mulai usaha')
@@ -59,9 +59,9 @@ export default function ModalAwalSetup({ onSaved }: ModalAwalSetupProps) {
     setSaving(true)
     try {
       const newData: ModalAwal = {
-        totalModal: total || 0,
-        dariSendiri: sendiri || total || 0,
-        dariHutang: hutang || 0,
+        totalModal: total,
+        dariSendiri: sendiri,
+        dariHutang,
         tanggalMulai,
         sudahDiisi: true,
       }
@@ -74,6 +74,16 @@ export default function ModalAwalSetup({ onSaved }: ModalAwalSetupProps) {
     } finally {
       setSaving(false)
     }
+  }
+
+  const handleTotalChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.replace(/[^0-9]/g, '')
+    setTotalModal(val ? parseInt(val).toLocaleString('id-ID') : '')
+  }
+
+  const handleSendiriChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.replace(/[^0-9]/g, '')
+    setDariSendiri(val ? parseInt(val).toLocaleString('id-ID') : '')
   }
 
   if (loading) {
@@ -95,10 +105,7 @@ export default function ModalAwalSetup({ onSaved }: ModalAwalSetupProps) {
             type="text"
             inputMode="numeric"
             value={totalModal}
-            onChange={(e) => {
-              const val = e.target.value.replace(/[^0-9]/g, '')
-              setTotalModal(val ? parseInt(val).toLocaleString('id-ID') : '')
-            }}
+            onChange={handleTotalChange}
             placeholder="0"
           />
 
@@ -108,25 +115,17 @@ export default function ModalAwalSetup({ onSaved }: ModalAwalSetupProps) {
             type="text"
             inputMode="numeric"
             value={dariSendiri}
-            onChange={(e) => {
-              const val = e.target.value.replace(/[^0-9]/g, '')
-              setDariSendiri(val ? parseInt(val).toLocaleString('id-ID') : '')
-            }}
+            onChange={handleSendiriChange}
             placeholder="0"
           />
 
-          <Input
-            label="Dari pinjaman"
-            prefix="Rp"
-            type="text"
-            inputMode="numeric"
-            value={dariHutang}
-            onChange={(e) => {
-              const val = e.target.value.replace(/[^0-9]/g, '')
-              setDariHutang(val ? parseInt(val).toLocaleString('id-ID') : '')
-            }}
-            placeholder="0"
-          />
+          <div>
+            <label className="block text-sm font-medium text-[#64748B] mb-1.5">Dari pinjaman (otomatis)</label>
+            <div className="w-full rounded-lg border border-[#E2E8F0] bg-[#F1F5F9] px-3 py-2.5 text-base text-[#64748B] min-h-[44px] flex items-center">
+              Rp {dariHutang.toLocaleString('id-ID')}
+            </div>
+            <p className="text-xs text-[#64748B] mt-1">Otomatis: total modal − uang sendiri</p>
+          </div>
 
           <div>
             <label className="block text-sm font-medium text-[#64748B] mb-1.5">Tanggal mulai usaha</label>
@@ -159,7 +158,7 @@ export default function ModalAwalSetup({ onSaved }: ModalAwalSetupProps) {
         <div className="text-center py-4">
           <p className="text-sm font-semibold text-[#0F172A]">Modal Awal</p>
           <p className="text-xs text-[#64748B] mt-1 mb-3">Catat modal pertama kamu untuk menghitung sisa kas secara akurat</p>
-          <Button size="sm" onClick={handleEdit}>
+          <Button size="sm" onClick={() => { setConfirmEdit(false); handleEdit() }}>
             Catat Modal Awal
           </Button>
         </div>
@@ -171,9 +170,20 @@ export default function ModalAwalSetup({ onSaved }: ModalAwalSetupProps) {
     <Card>
       <div className="flex items-center justify-between mb-2">
         <h3 className="font-semibold text-[#0F172A]">Modal Awal</h3>
-        <button onClick={handleEdit} className="text-xs text-[#2563EB] font-medium">
-          Edit
-        </button>
+        {!confirmEdit ? (
+          <button onClick={() => setConfirmEdit(true)} className="text-xs text-[#2563EB] font-medium">
+            Edit
+          </button>
+        ) : (
+          <div className="flex items-center gap-2">
+            <button onClick={() => setConfirmEdit(false)} className="text-xs text-[#64748B] font-medium">
+              Batal
+            </button>
+            <button onClick={handleEdit} className="text-xs text-[#DC2626] font-medium">
+              Ya, Edit
+            </button>
+          </div>
+        )}
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
